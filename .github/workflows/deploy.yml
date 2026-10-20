@@ -1,10 +1,11 @@
 name: Deploy
 
-# Deploys to aws on push to main (or manual run). Mirrors the
-# auth-server pipeline: build → ship → bootstrap → restart → health-gate.
+# Deploys to the ryanweiss.net box (162.35.181.92) on push to main or manual run.
+# The server pulls origin/main and builds itself via scripts/update.sh.
 #
-# Required repo secret:
-#   SSH_PRIVATE_KEY  — contents of the deploy key (Sites/ven/_keys/dev-admins.pem)
+# Optional repo secret:
+#   SSH_PRIVATE_KEY — a key authorized for rw3iss@162.35.181.92.
+#   Without it this job is a no-op (deploy manually with scripts/deploy.sh).
 
 on:
   push:
@@ -15,45 +16,23 @@ concurrency:
   group: deploy-demo-manager
   cancel-in-progress: false
 
-env:
-  SSH_HOST: 3.12.0.133
-  SSH_USER: ec2-user
-  REMOTE_DIR: /home/ec2-user/apps/demo-manager
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      SSH_HOST: 162.35.181.92
+      SSH_USER: rw3iss
+      HAS_KEY: ${{ secrets.SSH_PRIVATE_KEY != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Skip (no SSH_PRIVATE_KEY secret)
+        if: env.HAS_KEY != 'true'
+        run: echo "SSH_PRIVATE_KEY not set — skipping. Deploy with scripts/deploy.sh."
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Build server
-        run: cd server && npm ci && npm run build
-
-      - name: Build client
-        run: cd client && npm ci && npm run build
-
-      - name: Configure SSH
+      - name: Deploy over SSH
+        if: env.HAS_KEY == 'true'
         run: |
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
-
-      - name: Sync, bootstrap, restart, health-check
-        run: |
-          RSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new"
-          REMOTE="$SSH_USER@$SSH_HOST"
-          $RSH "$REMOTE" "mkdir -p $REMOTE_DIR/server $REMOTE_DIR/client"
-          rsync -az --delete -e "$RSH" server/dist/ "$REMOTE:$REMOTE_DIR/server/dist/"
-          rsync -az          -e "$RSH" server/package.json server/package-lock.json "$REMOTE:$REMOTE_DIR/server/"
-          rsync -az --delete -e "$RSH" client/dist/ "$REMOTE:$REMOTE_DIR/client/dist/"
-          rsync -az          -e "$RSH" deploy scripts "$REMOTE:$REMOTE_DIR/"
-          $RSH "$REMOTE" "bash $REMOTE_DIR/scripts/setup-server.sh \
-            && cd $REMOTE_DIR/server && /opt/node/bin/npm ci --omit=dev \
-            && sudo systemctl restart demo-manager \
-            && sleep 2 && curl -sf http://localhost:8092/healthz >/dev/null \
-            && echo 'deploy ok'"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new \
+            "$SSH_USER@$SSH_HOST" "bash /var/www/demo-manager/scripts/update.sh"

@@ -1,32 +1,26 @@
-# /etc/systemd/system/demo-manager.service
+# /etc/systemd/system/demo-manager.service — ryanweiss.net box (162.35.181.92)
 #
-# demo-manager — native Node service. Install:
-#   sudo cp deploy/systemd/demo-manager.service /etc/systemd/system/
-#   sudo systemctl daemon-reload
-#   sudo systemctl enable --now demo-manager
+# Native Node service. Installed/refreshed by scripts/setup-server.sh.
+#   Logs:    sudo journalctl -u demo-manager -f
+#   Restart: sudo systemctl restart demo-manager
 #
-# Logs:    sudo journalctl -u demo-manager -f
-# Restart: sudo systemctl restart demo-manager
-#
-# Listens on :8092 (0.0.0.0). nginx (rw-nginx container) terminates TLS for
-# demos.ryanweiss.net and reverse-proxies to host 172.20.0.1:8092.
+# Binds 127.0.0.1:4090; nginx (/etc/nginx/conf.d/demos.ryanweiss.net.conf)
+# terminates TLS and proxies to it. Self-healing: Restart=always with no start
+# limit, plus demo-manager-healthcheck.timer restarts it if /healthz stops answering.
 
 [Unit]
-Description=Demo Manager
-After=network-online.target
-Wants=network-online.target
-# Never give up after repeated crashes (e.g. DB briefly unreachable on boot).
-# StartLimit* belong in the [Unit] section on this systemd version.
+Description=Demo Manager (demos.ryanweiss.net)
+After=network-online.target postgresql.service
+Wants=network-online.target postgresql.service
 StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-User=ec2-user
-WorkingDirectory=/home/ec2-user/apps/demo-manager/server
-EnvironmentFile=/home/ec2-user/apps/demo-manager/server/.env
-# Node is installed host-wide at /opt/node by scripts/setup-server.sh.
-ExecStart=/opt/node/bin/node dist/main.js
-
+User=rw3iss
+Group=rw3iss
+WorkingDirectory=/var/www/demo-manager/server
+EnvironmentFile=/etc/demo-manager/demo-manager.env
+ExecStart=/usr/local/bin/node dist/main.js
 Restart=always
 RestartSec=5
 
@@ -34,13 +28,12 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=demo-manager
 
-# Hardening. ProtectSystem=strict makes the FS read-only except the paths
-# below; the service writes uploaded demos to DEMOS_ROOT (/opt/demos) and temp
-# uploads to its private /tmp (PrivateTmp=true).
 NoNewPrivileges=true
 ProtectSystem=strict
+ProtectHome=read-only
 PrivateTmp=true
-ReadWritePaths=/opt/demos
+ReadWritePaths=/var/lib/demo-manager
+LimitNOFILE=65536
 
 [Install]
 WantedBy=multi-user.target

@@ -1,73 +1,36 @@
 #!/usr/bin/env bash
-# Idempotent host bootstrap for demo-manager. Safe to run on
-# every deploy — each step is skipped if already done. Run ON the server:
-#   bash ~/apps/demo-manager/scripts/setup-server.sh
-#
-# Does: install Node → /opt/node, create /opt/demos, create the demo_manager
-# DB on rw-postgres, write server/.env (DB password pulled from the running
-# container — no secret in the repo), install the systemd unit + nginx vhost,
-# and issue the TLS cert.
+# Runs ON THE SERVER (ryanweiss.net box, Fedora, native nginx + Postgres).
+# Idempotent: safe to run on every deploy. Called by scripts/update.sh.
+# Creates: data dir, Postgres role+db, /etc/demo-manager/demo-manager.env,
+# systemd units, nginx vhost, Let's Encrypt cert.
 set -euo pipefail
+APP_DIR="${APP_DIR:-/var/www/demo-manager}"
+DATA_DIR=/var/lib/demo-manager
+ENV_FILE=/etc/demo-manager/demo-manager.env
+DOMAIN=demos.ryanweiss.net
+RUN_USER=rw3iss
 
-NODE_VERSION="${NODE_VERSION:-22.18.0}"
-APP_DIR="${APP_DIR:-$HOME/apps/demo-manager}"
-DEMOS_ROOT="${DEMOS_ROOT:-/opt/demos}"
-DOMAIN="${DOMAIN:-demos.ryanweiss.net}"
-CERT_EMAIL="${CERT_EMAIL:-ryan@ryanweiss.net}"
-PG_CONTAINER="${PG_CONTAINER:-rw-postgres}"
-PG_USER="${PG_USER:-twenty}"
-DB_NAME="${DB_NAME:-demo_manager}"
-SSL_DIR="/opt/rw-cms/nginx/ssl"
-CONF_DIR="/opt/rw-cms/nginx/conf.d"
+# 1) Demo storage (outside /var/www: served by node, not nginx).
+sudo mkdir -p "$DATA_DIR/demos"
+sudo chown -R "$RUN_USER:$RUN_USER" "$DATA_DIR"
 
-say() { echo "  → $*"; }
-
-# ── 1. Node ────────────────────────────────────────────────────────────────
-if [ ! -x /opt/node/bin/node ]; then
-  say "Installing Node v$NODE_VERSION → /opt/node"
-  curl -fsSL "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.xz" -o /tmp/node.tar.xz
-  sudo mkdir -p /opt/node
-  sudo tar -xJf /tmp/node.tar.xz -C /opt/node --strip-components=1
-  rm -f /tmp/node.tar.xz
-else
-  say "Node present: $(/opt/node/bin/node -v)"
-fi
-# Symlink onto PATH so `node`/`npm` resolve everywhere (npm's #!/usr/bin/env
-# node shebang needs `node` discoverable; systemd uses the absolute path).
-sudo ln -sf /opt/node/bin/node /usr/local/bin/node
-sudo ln -sf /opt/node/bin/npm /usr/local/bin/npm
-sudo ln -sf /opt/node/bin/npx /usr/local/bin/npx
-
-# ── 2. demos root ──────────────────────────────────────────────────────────
-if [ ! -d "$DEMOS_ROOT" ]; then
-  say "Creating $DEMOS_ROOT"
-  sudo mkdir -p "$DEMOS_ROOT"
-  sudo chown "$USER:$USER" "$DEMOS_ROOT"
-fi
-
-# ── 3. database ──────────────────────────────────────────────────────────
-if ! sudo docker exec "$PG_CONTAINER" psql -U "$PG_USER" -tAc \
-      "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then
-  say "Creating database $DB_NAME"
-  sudo docker exec "$PG_CONTAINER" psql -U "$PG_USER" -c "CREATE DATABASE $DB_NAME"
-else
-  say "Database $DB_NAME exists"
-fi
-
-# ── 4. server/.env ───────────────────────────────────────────────────────
-ENV_FILE="$APP_DIR/server/.env"
-if [ ! -f "$ENV_FILE" ]; then
-  say "Writing $ENV_FILE"
-  PGPASS="$(sudo docker exec "$PG_CONTAINER" printenv POSTGRES_PASSWORD)"
-  mkdir -p "$APP_DIR/server"
-  cat > "$ENV_FILE" <<EOF
+# 2) Postgres role + db (password generated once, kept in the env file).
+if ! sudo test -f "$ENV_FILE"; then
+  DB_PASS="$(openssl rand -hex 24)"
+  sudo -u postgres psql -qtAc "SELECT 1 FROM pg_roles WHERE rolname='demo_manager'" | grep -q 1 \
+    || sudo -u postgres psql -qc "CREATE ROLE demo_manager LOGIN PASSWORD '$DB_PASS'"
+  sudo -u postgres psql -qc "ALTER ROLE demo_manager PASSWORD '$DB_PASS'"
+  sudo -u postgres psql -qtAc "SELECT 1 FROM pg_database WHERE datname='demo_manager'" | grep -q 1 \
+    || sudo -u postgres psql -qc "CREATE DATABASE demo_manager OWNER demo_manager"
+  sudo mkdir -p "$(dirname "$ENV_FILE")"
+  sudo tee "$ENV_FILE" >/dev/null <<ENV
 NODE_ENV=production
-PORT=8092
-HOST=0.0.0.0
-LOG_LEVEL=log
-CORS_ORIGINS=*
+PORT=4090
+HOST=127.0.0.1
+LOG_LEVEL=info
+CORS_ORIGINS=https://$DOMAIN
 PUBLIC_BASE_URL=https://$DOMAIN
-DEMOS_ROOT=$DEMOS_ROOT
+DEMOS_ROOT=$DATA_DIR/demos
 CLIENT_DIST_PATH=$APP_DIR/client/dist
 MANAGER_BASE_PATH=/manage
 MAX_UPLOAD_MB=200
@@ -75,63 +38,43 @@ MAX_ZIP_ENTRIES=5000
 MAX_UNCOMPRESSED_MB=500
 DB_HOST=127.0.0.1
 DB_PORT=5432
-DB_USER=$PG_USER
-DB_PASSWORD=$PGPASS
-DB_NAME=$DB_NAME
+DB_USER=demo_manager
+DB_PASSWORD=$DB_PASS
+DB_NAME=demo_manager
 DB_SYNCHRONIZE=false
 DB_RUN_MIGRATIONS=true
+PAGELOOP_ENDPOINT=https://pageloop.dev
 AUTH_ENABLED=false
-EOF
-  chmod 600 "$ENV_FILE"
-else
-  say "server/.env exists (left untouched)"
+ENV
+  sudo chmod 600 "$ENV_FILE"
 fi
 
-# ── 5. systemd unit ──────────────────────────────────────────────────────
-say "Installing systemd unit"
-sudo cp "$APP_DIR/deploy/systemd/demo-manager.service" /etc/systemd/system/demo-manager.service
-sudo systemctl daemon-reload
-sudo systemctl enable demo-manager >/dev/null 2>&1 || true
+# 3) systemd units (service + health-check timer).
+changed=0
+for u in demo-manager.service demo-manager-healthcheck.service demo-manager-healthcheck.timer; do
+  if ! sudo cmp -s "$APP_DIR/deploy/systemd/$u" "/etc/systemd/system/$u"; then
+    sudo install -m 644 "$APP_DIR/deploy/systemd/$u" "/etc/systemd/system/$u"; changed=1
+  fi
+done
+[ "$changed" = 1 ] && sudo systemctl daemon-reload
+sudo systemctl enable --quiet demo-manager.service demo-manager-healthcheck.timer
+sudo systemctl start demo-manager-healthcheck.timer
 
-# ── 6. nginx vhost ───────────────────────────────────────────────────────
-say "Installing nginx vhost"
-sudo cp "$APP_DIR/deploy/nginx/$DOMAIN.conf" "$CONF_DIR/$DOMAIN.conf"
-# Self-signed bootstrap so nginx validates before the real cert exists.
-# Note: /etc/letsencrypt/live is root-only, so cert-existence checks MUST use
-# `sudo test` — a plain `[ -f ]` as ec2-user silently reads false.
-if ! sudo test -f "$SSL_DIR/demos-fullchain.pem"; then
-  say "Generating temporary self-signed cert"
-  sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-    -keyout "$SSL_DIR/demos-privkey.pem" -out "$SSL_DIR/demos-fullchain.pem" \
-    -subj "/CN=$DOMAIN" 2>/dev/null
-fi
-sudo docker exec rw-nginx nginx -t && sudo docker exec rw-nginx nginx -s reload
-
-# ── 7. TLS via certbot (only if not already issued) ──────────────────────
-if ! sudo test -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
-  say "Requesting Let's Encrypt cert for $DOMAIN"
-  WEBROOT="$(sudo docker volume inspect rw-certbot-webroot -f '{{.Mountpoint}}')"
-  sudo certbot certonly --webroot -w "$WEBROOT" -d "$DOMAIN" \
-    --non-interactive --agree-tos --email "$CERT_EMAIL" || say "certbot failed (check DNS); using self-signed for now"
-fi
-# Install the real cert into nginx's ssl dir whenever it differs from what's
-# deployed (covers first issue + renewals run outside the deploy hook).
-if sudo test -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
-  say "Installing Let's Encrypt cert into nginx + reloading"
-  sudo cp "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" "$SSL_DIR/demos-fullchain.pem"
-  sudo cp "/etc/letsencrypt/live/$DOMAIN/privkey.pem" "$SSL_DIR/demos-privkey.pem"
-  HOOK="/etc/letsencrypt/renewal-hooks/deploy/$DOMAIN.sh"
-  sudo tee "$HOOK" >/dev/null <<'HK'
-#!/bin/bash
-set -euo pipefail
-DOMAIN="demos.ryanweiss.net"; SSL_DIR="/opt/rw-cms/nginx/ssl"
-[ "${RENEWED_LINEAGE:-}" = "/etc/letsencrypt/live/${DOMAIN}" ] || exit 0
-cp "${RENEWED_LINEAGE}/fullchain.pem" "${SSL_DIR}/demos-fullchain.pem"
-cp "${RENEWED_LINEAGE}/privkey.pem"   "${SSL_DIR}/demos-privkey.pem"
-docker exec rw-nginx nginx -s reload
-HK
-  sudo chmod +x "$HOOK"
-  sudo docker exec rw-nginx nginx -s reload
+# 4) TLS cert (HTTP-01 webroot; needs an HTTP-only vhost first).
+VHOST=/etc/nginx/conf.d/$DOMAIN.conf
+if ! sudo test -d "/etc/letsencrypt/live/$DOMAIN"; then
+  sudo tee "$VHOST" >/dev/null <<NGX
+server { listen 80; listen [::]:80; server_name $DOMAIN;
+  location /.well-known/acme-challenge/ { root /var/www/letsencrypt; }
+  location / { return 503; } }
+NGX
+  sudo nginx -t -q && sudo systemctl reload nginx
+  sudo certbot certonly --webroot -w /var/www/letsencrypt -d "$DOMAIN" \
+    --non-interactive --agree-tos -m rw3iss@gmail.com --keep-until-expiring
 fi
 
-echo "✓ setup-server.sh complete"
+# 5) nginx vhost.
+if ! sudo cmp -s "$APP_DIR/deploy/nginx/$DOMAIN.conf" "$VHOST"; then
+  sudo install -m 644 "$APP_DIR/deploy/nginx/$DOMAIN.conf" "$VHOST"
+  sudo nginx -t -q && sudo systemctl reload nginx
+fi

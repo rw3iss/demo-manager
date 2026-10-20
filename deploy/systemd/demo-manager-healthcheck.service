@@ -1,0 +1,8 @@
+# Restarts demo-manager if it is running but /healthz does not answer (hang).
+# Crashes are already covered by Restart=always in demo-manager.service.
+[Unit]
+Description=Demo Manager health check
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'curl -sf --max-time 10 http://127.0.0.1:4090/healthz >/dev/null || systemctl restart demo-manager'
