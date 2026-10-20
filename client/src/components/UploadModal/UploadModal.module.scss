@@ -1,0 +1,79 @@
+.file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface-solid);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.fileIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.fileMeta {
+  min-width: 0;
+}
+.fileName {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fileSub {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+.mono {
+  font-family: var(--font-mono);
+  color: var(--color-text);
+}
+.badge {
+  font-family: var(--font-mono);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.promote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0 0;
+}
+.promoteHint {
+  font-size: 12.5px;
+  color: var(--color-text-dim);
+}
+
+.progress {
+  height: 6px;
+  background: var(--color-surface-3);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.bar {
+  height: 100%;
+  background: var(--color-primary);
+  box-shadow: var(--shadow-glow);
+  transition: width var(--dur-fast) linear;
+}
+
+.error {
+  padding: var(--space-3);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  font-size: 13px;
+}

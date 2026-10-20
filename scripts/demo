@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# demo — CLI for the demo-manager API. The worked example for a future
+# `ven demo …` integration; every verb is a plain REST call.
+#
+#   demo projects                              list projects
+#   demo get <slug>                            project detail
+#   demo create <name> [--slug s] [--desc d]   create a project
+#   demo publish <slug> <file.zip> [--name n] [--no-promote] [--dry-run]
+#   demo promote <slug> <number>               make a version current
+#   demo enable  <slug> <number>               enable a version
+#   demo disable <slug> <number>               disable a version
+#   demo rm <slug> [number]                    delete a version, or the project
+#
+# Config: DEMO_API (default https://demos.vendidit.com), DEMO_TOKEN (optional,
+# forwarded as a Bearer token for when auth lands).
+set -euo pipefail
+
+API="${DEMO_API:-https://demos.vendidit.com}/api/v1"
+AUTH=(); [ -n "${DEMO_TOKEN:-}" ] && AUTH=(-H "Authorization: Bearer ${DEMO_TOKEN}")
+pretty() { if command -v jq >/dev/null 2>&1; then jq .; else cat; fi; }
+die() { echo "demo: $*" >&2; exit 1; }
+
+usage() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+  projects)
+    curl -fsS "${AUTH[@]}" "$API/projects" | pretty ;;
+
+  get)
+    [ $# -ge 1 ] || die "usage: demo get <slug>"
+    curl -fsS "${AUTH[@]}" "$API/projects/$1" | pretty ;;
+
+  create)
+    [ $# -ge 1 ] || die "usage: demo create <name> [--slug s] [--desc d]"
+    name="$1"; shift; slug=""; desc=""
+    while [ $# -gt 0 ]; do case "$1" in
+      --slug) slug="$2"; shift 2;; --desc|--description) desc="$2"; shift 2;;
+      *) die "unknown flag $1";; esac; done
+    body="{\"name\":$(printf '%s' "$name" | jq -R .)"
+    [ -n "$slug" ] && body="$body,\"slug\":$(printf '%s' "$slug" | jq -R .)"
+    [ -n "$desc" ] && body="$body,\"description\":$(printf '%s' "$desc" | jq -R .)"
+    body="$body}"
+    curl -fsS "${AUTH[@]}" -X POST "$API/projects" -H 'Content-Type: application/json' -d "$body" | pretty ;;
+
+  publish)
+    [ $# -ge 2 ] || die "usage: demo publish <slug> <file.zip> [--name n] [--no-promote] [--dry-run]"
+    slug="$1"; file="$2"; shift 2; vname=""; promote=true; dry=false
+    while [ $# -gt 0 ]; do case "$1" in
+      --name) vname="$2"; shift 2;; --no-promote) promote=false; shift;;
+      --promote) promote=true; shift;; --dry-run) dry=true; shift;;
+      *) die "unknown flag $1";; esac; done
+    [ -f "$file" ] || die "no such file: $file"
+    if $dry; then
+      size=$(wc -c < "$file" | tr -d ' ')
+      next=$(curl -fsS "${AUTH[@]}" "$API/projects/$slug" | { jq '([.data.versions[].number] + [0]) | max + 1' 2>/dev/null || echo '?'; })
+      echo "would publish $file ($size bytes) to /$slug/ as v$next (promote=$promote)"; exit 0
+    fi
+    curl -fsS "${AUTH[@]}" -X POST "$API/projects/$slug/versions" \
+      -F "file=@$file;type=application/zip" \
+      ${vname:+-F "name=$vname"} -F "promote=$promote" | pretty ;;
+
+  promote)
+    [ $# -ge 2 ] || die "usage: demo promote <slug> <number>"
+    curl -fsS "${AUTH[@]}" -X POST "$API/projects/$1/versions/$2/promote" | pretty ;;
+
+  enable|disable)
+    [ $# -ge 2 ] || die "usage: demo $cmd <slug> <number>"
+    val=$([ "$cmd" = enable ] && echo true || echo false)
+    curl -fsS "${AUTH[@]}" -X PATCH "$API/projects/$1/versions/$2" \
+      -H 'Content-Type: application/json' -d "{\"enabled\":$val}" | pretty ;;
+
+  rm)
+    [ $# -ge 1 ] || die "usage: demo rm <slug> [number]"
+    if [ $# -ge 2 ]; then
+      curl -fsS "${AUTH[@]}" -X DELETE "$API/projects/$1/versions/$2" | pretty
+    else
+      curl -fsS "${AUTH[@]}" -X DELETE "$API/projects/$1" | pretty
+    fi ;;
+
+  ""|-h|--help|help) usage 0 ;;
+  *) die "unknown command '$cmd' (try: demo --help)" ;;
+esac

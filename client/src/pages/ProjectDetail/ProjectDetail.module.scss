@@ -1,0 +1,155 @@
+.page {
+  padding: var(--space-6) var(--space-6) var(--space-8);
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.back {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  letter-spacing: var(--tracking-tight);
+  transition: color var(--dur-fast) var(--ease-out);
+  &:hover {
+    color: var(--color-primary);
+  }
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.headMain {
+  min-width: 0;
+}
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.titleRow h1 {
+  font-size: 28px;
+}
+.url {
+  display: inline-block;
+  margin-top: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-primary);
+  word-break: break-all;
+}
+.desc {
+  margin-top: var(--space-3);
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  max-width: 60ch;
+}
+.headActions {
+  display: flex;
+  gap: var(--space-2);
+  flex: none;
+}
+
+// Two columns: versions (main, ~62%) + upload panel (side, ~38%).
+.split {
+  display: flex;
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+.main {
+  flex: 62 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.side {
+  flex: 38 1 0;
+  min-width: 0;
+  position: sticky;
+  top: 84px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.versionsHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.versionsHead h2 {
+  font-size: 18px;
+}
+.count {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-3);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.noVersions {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-text-dim);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+}
+
+.gone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+  color: var(--color-text-muted);
+}
+.gone h1 {
+  font-size: 24px;
+  color: var(--color-text);
+}
+
+// Stack the two columns; the upload panel drops below the versions.
+@media (max-width: 820px) {
+  .split {
+    flex-direction: column;
+  }
+  .main,
+  .side {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+  .side {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: var(--space-5) var(--space-4) var(--space-7);
+  }
+  .head {
+    flex-direction: column;
+  }
+  .headActions {
+    width: 100%;
+  }
+}

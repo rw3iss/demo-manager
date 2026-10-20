@@ -1,0 +1,17 @@
+{
+  "name": "demo-manager",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Publish and version static demo sites — Preact admin + NestJS server.",
+  "scripts": {
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd server && npm run build && cd ../client && npm run build",
+    "typecheck": "cd server && npm run typecheck && cd ../client && npm run typecheck",
+    "deploy": "bash scripts/deploy.sh"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  }
+}

@@ -1,0 +1,79 @@
+.zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+
+  // Compact variant for the project page's side column.
+  &.compact {
+    padding: var(--space-5) var(--space-4);
+    gap: var(--space-1);
+  }
+  &.compact .icon {
+    width: 34px;
+    height: 34px;
+    font-size: 16px;
+  }
+  &.compact .headline {
+    font-size: 14px;
+  }
+  &.compact .sub {
+    font-size: 11px;
+  }
+  border: 1.5px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+
+  &:hover {
+    border-color: var(--color-border-glow);
+    background: var(--color-primary-softer);
+  }
+}
+.drag {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+  transform: scale(1.005);
+}
+.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.input {
+  display: none;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 20px;
+  font-weight: 700;
+}
+.headline {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 16px;
+}
+.mono {
+  font-family: var(--font-mono);
+  color: var(--color-primary);
+  font-size: 14px;
+}
+.sub {
+  font-size: 12.5px;
+  color: var(--color-text-dim);
+}

@@ -1,0 +1,59 @@
+name: Deploy
+
+# Deploys to ven-internal on push to main (or manual run). Mirrors the
+# auth-server pipeline: build → ship → bootstrap → restart → health-gate.
+#
+# Required repo secret:
+#   SSH_PRIVATE_KEY  — contents of the deploy key (Sites/ven/_keys/dev-admins.pem)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-demo-manager
+  cancel-in-progress: false
+
+env:
+  SSH_HOST: 3.12.0.133
+  SSH_USER: ec2-user
+  REMOTE_DIR: /home/ec2-user/apps/demo-manager
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build server
+        run: cd server && npm ci && npm run build
+
+      - name: Build client
+        run: cd client && npm ci && npm run build
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Sync, bootstrap, restart, health-check
+        run: |
+          RSH="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=accept-new"
+          REMOTE="$SSH_USER@$SSH_HOST"
+          $RSH "$REMOTE" "mkdir -p $REMOTE_DIR/server $REMOTE_DIR/client"
+          rsync -az --delete -e "$RSH" server/dist/ "$REMOTE:$REMOTE_DIR/server/dist/"
+          rsync -az          -e "$RSH" server/package.json server/package-lock.json "$REMOTE:$REMOTE_DIR/server/"
+          rsync -az --delete -e "$RSH" client/dist/ "$REMOTE:$REMOTE_DIR/client/dist/"
+          rsync -az          -e "$RSH" deploy scripts "$REMOTE:$REMOTE_DIR/"
+          $RSH "$REMOTE" "bash $REMOTE_DIR/scripts/setup-server.sh \
+            && cd $REMOTE_DIR/server && /opt/node/bin/npm ci --omit=dev \
+            && sudo systemctl restart demo-manager \
+            && sleep 2 && curl -sf http://localhost:8092/healthz >/dev/null \
+            && echo 'deploy ok'"

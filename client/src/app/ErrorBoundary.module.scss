@@ -1,0 +1,37 @@
+.wrap {
+  display: grid;
+  place-items: center;
+  min-height: 100%;
+  padding: var(--space-5);
+}
+.card {
+  max-width: 460px;
+  text-align: center;
+}
+.code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-danger);
+}
+.card h1 {
+  font-size: 26px;
+  margin: var(--space-3) 0 var(--space-2);
+}
+.card p {
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-5);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.btn {
+  padding: var(--space-2) var(--space-5);
+  border: 1px solid var(--color-border-glow);
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  transition: background var(--dur-fast) var(--ease-out);
+  &:hover {
+    background: var(--color-primary-soft);
+  }
+}

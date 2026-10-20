@@ -1,0 +1,141 @@
+// A version rendered as a simple "floating" row — minimal containment, hover
+// surfaces both a paper lift and the row's actions.
+.row {
+  // Subtle blue hover tint (and the actions backdrop matches it).
+  --row-bg: var(--color-primary-softer);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.row:hover,
+.row:focus-visible {
+  background: var(--row-bg);
+}
+.current {
+  // Current row rests in a clearly-blue tint; hover holds the same.
+  --row-bg: var(--color-primary-soft);
+  background: var(--color-primary-soft);
+}
+.off {
+  opacity: 0.6;
+}
+
+// ── left: version number + small chip underneath ───────────────────────
+.left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 50px;
+  flex: none;
+}
+.num {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.chip {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+.chipOff {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+// ── middle: optional name + time on one line ───────────────────────────
+.mid {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.name {
+  font-size: 14.5px;
+  color: var(--color-text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-dim);
+  white-space: nowrap;
+  flex: none;
+}
+
+// ── right: actions, revealed on hover over a matching backdrop ──────────
+.actions {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-left: var(--space-6);
+  // Reach the row's right edge (no gap), keep the buttons inset via padding.
+  padding-right: var(--space-2);
+  background: linear-gradient(to right, transparent, var(--row-bg) 28px);
+  // Match the row's rounded corners on the side that meets the edge.
+  border-top-right-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.row:hover .actions,
+.row:focus-within .actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.act {
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.act:hover {
+  background: var(--color-surface-3);
+  color: var(--color-text);
+}
+.act:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.danger:hover {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+.hiddenInput {
+  display: none;
+}
+
+// Touch / no-hover: keep actions visible (can't hover to reveal).
+@media (hover: none), (max-width: 540px) {
+  .actions {
+    position: static;
+    opacity: 1;
+    pointer-events: auto;
+    padding-left: 0;
+    background: none;
+  }
+}

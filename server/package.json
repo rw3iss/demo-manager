@@ -1,0 +1,50 @@
+{
+  "name": "demo-manager-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "demo-manager backend — admin API + static demo serving (NestJS)",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "dev": "nest start --watch",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "oxlint src",
+    "typeorm": "typeorm-ts-node-commonjs -d src/database/data-source.ts",
+    "migration:run": "npm run typeorm -- migration:run",
+    "migration:revert": "npm run typeorm -- migration:revert",
+    "migration:generate": "npm run typeorm -- migration:generate",
+    "migration:show": "npm run typeorm -- migration:show"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.0",
+    "@nestjs/config": "^4.0.0",
+    "@nestjs/core": "^11.1.0",
+    "@nestjs/platform-express": "^11.1.0",
+    "@nestjs/typeorm": "^11.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "joi": "^17.13.3",
+    "pg": "^8.13.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.20"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@types/express": "^5.0.0",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.10.0",
+    "dotenv": "^16.4.5",
+    "oxlint": "^1.0.0",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.7.3"
+  }
+}

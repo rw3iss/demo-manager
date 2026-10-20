@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# builds
+dist/
+
+# env (keep .env.example)
+.env
+.env.local
+.env.*.local
+
+# uploaded demos (local dev storage)
+.demos-data/
+
+# logs / os
+*.log
+.DS_Store
+
+# editor
+.vscode/
+.idea/
+
+# tooling caches
+.playwright-mcp/
+*.tsbuildinfo

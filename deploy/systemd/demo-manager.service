@@ -1,0 +1,47 @@
+# /etc/systemd/system/demo-manager.service
+#
+# Vendidit demo-manager — native Node service on ven-internal (mirrors the
+# auth-server pattern). Install:
+#   sudo cp deploy/systemd/demo-manager.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now demo-manager
+#
+# Logs:    sudo journalctl -u demo-manager -f
+# Restart: sudo systemctl restart demo-manager
+#
+# Listens on :8092 (0.0.0.0). nginx (ven-nginx container) terminates TLS for
+# demos.vendidit.com and reverse-proxies to host 172.20.0.1:8092.
+
+[Unit]
+Description=Vendidit Demo Manager
+After=network-online.target
+Wants=network-online.target
+# Never give up after repeated crashes (e.g. DB briefly unreachable on boot).
+# StartLimit* belong in the [Unit] section on this systemd version.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/apps/demo-manager/server
+EnvironmentFile=/home/ec2-user/apps/demo-manager/server/.env
+# Node is installed host-wide at /opt/node by scripts/setup-server.sh.
+ExecStart=/opt/node/bin/node dist/main.js
+
+Restart=always
+RestartSec=5
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=demo-manager
+
+# Hardening. ProtectSystem=strict makes the FS read-only except the paths
+# below; the service writes uploaded demos to DEMOS_ROOT (/opt/demos) and temp
+# uploads to its private /tmp (PrivateTmp=true).
+NoNewPrivileges=true
+ProtectSystem=strict
+PrivateTmp=true
+ReadWritePaths=/opt/demos
+
+[Install]
+WantedBy=multi-user.target

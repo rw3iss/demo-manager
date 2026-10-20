@@ -1,0 +1,36 @@
+// ── Breakpoints (compile-time) ───────────────────────────────────────────
+$bp-mobile: 540px;
+$bp-tablet: 820px;
+$bp-desktop: 1200px;
+
+@mixin below($bp) {
+  @media (max-width: $bp) {
+    @content;
+  }
+}
+
+@mixin mobile {
+  @media (max-width: $bp-mobile) {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media (max-width: $bp-tablet) {
+    @content;
+  }
+}
+
+// Thin scrollbar used by horizontally-scrolling regions.
+@mixin thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+  &::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: var(--radius-full);
+  }
+}

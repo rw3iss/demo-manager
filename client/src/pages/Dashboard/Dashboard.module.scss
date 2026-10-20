@@ -1,0 +1,134 @@
+@use '@styles/mixins' as m;
+
+.page {
+  padding: var(--space-7) var(--space-6) var(--space-8);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+}
+.headTitle {
+  flex: none;
+}
+.search {
+  width: 300px;
+  max-width: 100%;
+  height: 38px;
+  padding: 0 var(--space-3);
+  background: var(--color-surface-solid);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: 14px;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+
+  &::placeholder {
+    color: var(--color-text-dim);
+  }
+  &:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-soft);
+  }
+}
+.newBtn {
+  margin-left: auto;
+  flex: none;
+}
+.title {
+  font-size: 30px;
+  letter-spacing: -0.02em;
+}
+.subtitle {
+  margin-top: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+}
+
+.grid {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: var(--space-4);
+  @include m.thin-scrollbar;
+
+  @include m.tablet {
+    flex-direction: column;
+    overflow-x: visible;
+  }
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-danger-bg);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+  color: var(--color-text-muted);
+}
+.emptyMark {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-soft);
+  border: 1px solid var(--color-border-glow);
+  margin-bottom: var(--space-2);
+}
+.empty h2 {
+  color: var(--color-text);
+  font-size: 22px;
+}
+
+.noMatch {
+  padding: var(--space-7) var(--space-4);
+  text-align: center;
+  color: var(--color-text-dim);
+  font-size: 14px;
+}
+
+@include m.tablet {
+  .grid {
+    flex-direction: column;
+  }
+}
+@media (max-width: 540px) {
+  .page {
+    padding: var(--space-5) var(--space-4) var(--space-7);
+  }
+  .title {
+    font-size: 24px;
+  }
+  // Stack the controls: search spans the row, button drops beside/below it.
+  .search {
+    order: 3;
+    width: 100%;
+  }
+  .newBtn {
+    margin-left: auto;
+  }
+}
