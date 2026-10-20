@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Idempotent host bootstrap for demo-manager on ven-internal. Safe to run on
+# Idempotent host bootstrap for demo-manager. Safe to run on
 # every deploy — each step is skipped if already done. Run ON the server:
 #   bash ~/apps/demo-manager/scripts/setup-server.sh
 #
 # Does: install Node → /opt/node, create /opt/demos, create the demo_manager
-# DB on ven-postgres, write server/.env (DB password pulled from the running
+# DB on rw-postgres, write server/.env (DB password pulled from the running
 # container — no secret in the repo), install the systemd unit + nginx vhost,
 # and issue the TLS cert.
 set -euo pipefail
@@ -14,11 +14,11 @@ APP_DIR="${APP_DIR:-$HOME/apps/demo-manager}"
 DEMOS_ROOT="${DEMOS_ROOT:-/opt/demos}"
 DOMAIN="${DOMAIN:-demos.ryanweiss.net}"
 CERT_EMAIL="${CERT_EMAIL:-ryan@ryanweiss.net}"
-PG_CONTAINER="${PG_CONTAINER:-ven-postgres}"
+PG_CONTAINER="${PG_CONTAINER:-rw-postgres}"
 PG_USER="${PG_USER:-twenty}"
 DB_NAME="${DB_NAME:-demo_manager}"
-SSL_DIR="/opt/ven-cms/nginx/ssl"
-CONF_DIR="/opt/ven-cms/nginx/conf.d"
+SSL_DIR="/opt/rw-cms/nginx/ssl"
+CONF_DIR="/opt/rw-cms/nginx/conf.d"
 
 say() { echo "  → $*"; }
 
@@ -105,12 +105,12 @@ if ! sudo test -f "$SSL_DIR/demos-fullchain.pem"; then
     -keyout "$SSL_DIR/demos-privkey.pem" -out "$SSL_DIR/demos-fullchain.pem" \
     -subj "/CN=$DOMAIN" 2>/dev/null
 fi
-sudo docker exec ven-nginx nginx -t && sudo docker exec ven-nginx nginx -s reload
+sudo docker exec rw-nginx nginx -t && sudo docker exec rw-nginx nginx -s reload
 
 # ── 7. TLS via certbot (only if not already issued) ──────────────────────
 if ! sudo test -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
   say "Requesting Let's Encrypt cert for $DOMAIN"
-  WEBROOT="$(sudo docker volume inspect ven-certbot-webroot -f '{{.Mountpoint}}')"
+  WEBROOT="$(sudo docker volume inspect rw-certbot-webroot -f '{{.Mountpoint}}')"
   sudo certbot certonly --webroot -w "$WEBROOT" -d "$DOMAIN" \
     --non-interactive --agree-tos --email "$CERT_EMAIL" || say "certbot failed (check DNS); using self-signed for now"
 fi
@@ -124,14 +124,14 @@ if sudo test -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
   sudo tee "$HOOK" >/dev/null <<'HK'
 #!/bin/bash
 set -euo pipefail
-DOMAIN="demos.ryanweiss.net"; SSL_DIR="/opt/ven-cms/nginx/ssl"
+DOMAIN="demos.ryanweiss.net"; SSL_DIR="/opt/rw-cms/nginx/ssl"
 [ "${RENEWED_LINEAGE:-}" = "/etc/letsencrypt/live/${DOMAIN}" ] || exit 0
 cp "${RENEWED_LINEAGE}/fullchain.pem" "${SSL_DIR}/demos-fullchain.pem"
 cp "${RENEWED_LINEAGE}/privkey.pem"   "${SSL_DIR}/demos-privkey.pem"
-docker exec ven-nginx nginx -s reload
+docker exec rw-nginx nginx -s reload
 HK
   sudo chmod +x "$HOOK"
-  sudo docker exec ven-nginx nginx -s reload
+  sudo docker exec rw-nginx nginx -s reload
 fi
 
 echo "✓ setup-server.sh complete"

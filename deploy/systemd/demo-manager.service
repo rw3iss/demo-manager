@@ -8,7 +8,7 @@
 # Logs:    sudo journalctl -u demo-manager -f
 # Restart: sudo systemctl restart demo-manager
 #
-# Listens on :8092 (0.0.0.0). nginx (ven-nginx container) terminates TLS for
+# Listens on :8092 (0.0.0.0). nginx (rw-nginx container) terminates TLS for
 # demos.ryanweiss.net and reverse-proxies to host 172.20.0.1:8092.
 
 [Unit]

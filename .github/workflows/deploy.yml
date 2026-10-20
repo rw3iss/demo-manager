@@ -1,6 +1,6 @@
 name: Deploy
 
-# Deploys to ven-internal on push to main (or manual run). Mirrors the
+# Deploys to aws on push to main (or manual run). Mirrors the
 # auth-server pipeline: build → ship → bootstrap → restart → health-gate.
 #
 # Required repo secret:

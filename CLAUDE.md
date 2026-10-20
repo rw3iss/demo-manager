@@ -44,17 +44,13 @@ No DB handy? A throwaway Postgres works: `initdb -D /tmp/pg -U postgres
 -U postgres demo_manager`, then point `server/.env` at `127.0.0.1:5433` with
 `DB_RUN_MIGRATIONS=true`.
 
-## Production — ven-internal
+## Production — ryanweiss.net
 
-**Connect:**
+**TODO: update instructions for ryanweiss.net here**
 
-```bash
-ssh -i ~/Sites/ven/_keys/dev-admins.pem ec2-user@3.12.0.133
-```
-
-This box (Amazon Linux 2023) runs everything else in Docker (`/opt/ven-cms/`),
-but demo-manager is a **native systemd service** like the Go auth-server — it is
-NOT in Docker. It reuses the box's `ven-postgres` and `ven-nginx` containers.
+User 'rw' alias to connect to production box (Fedora 44).
+demo-manager is a **native systemd service** like the Go auth-server — it is
+NOT in Docker. It uses the box's postgres and nginx.
 
 | Thing | Where |
 |---|---|
@@ -63,9 +59,9 @@ NOT in Docker. It reuses the box's `ven-postgres` and `ven-nginx` containers.
 | Service | `demo-manager.service` (`/etc/systemd/system/`) → host `:8092` |
 | Env (secrets) | `~/apps/demo-manager/server/.env` (chmod 600) |
 | Demos on disk | `/opt/demos/<slug>/<n>/` |
-| Database | `demo_manager` on `ven-postgres` (user `twenty`, host `127.0.0.1:5432`) |
-| nginx vhost | `/opt/ven-cms/nginx/conf.d/demos.ryanweiss.net.conf` → `proxy_pass 172.20.0.1:8092` |
-| TLS | `/opt/ven-cms/nginx/ssl/demos-{fullchain,privkey}.pem` (certbot; renewal hook copies + reloads) |
+| Database | `demo_manager` on `rw-postgres` (user `twenty`, host `127.0.0.1:5432`) |
+| nginx vhost | `/opt/rw-cms/nginx/conf.d/demos.ryanweiss.net.conf` → `proxy_pass 172.20.0.1:8092` |
+| TLS | `/opt/rw-cms/nginx/ssl/demos-{fullchain,privkey}.pem` (certbot; renewal hook copies + reloads) |
 
 **Operate:**
 
@@ -75,9 +71,9 @@ sudo journalctl -u demo-manager -f          # live logs
 sudo systemctl restart demo-manager
 curl -s http://localhost:8092/healthz       # local health
 # DB shell (psql isn't on the host — go through the container):
-sudo docker exec -it ven-postgres psql -U twenty -d demo_manager
+sudo docker exec -it rw-postgres psql -U twenty -d demo_manager
 # nginx (containerized):
-sudo docker exec ven-nginx nginx -t && sudo docker exec ven-nginx nginx -s reload
+sudo docker exec rw-nginx nginx -t && sudo docker exec rw-nginx nginx -s reload
 ```
 
 ## Deploying
@@ -93,7 +89,7 @@ Or push to `main` → `.github/workflows/deploy.yml` does the same (needs the
 
 **First time on a fresh box:** `deploy.sh` calls `setup-server.sh` automatically;
 it installs Node, creates `/opt/demos`, creates the DB, writes `server/.env`
-(pulling the PG password from the running `ven-postgres` container — no secret in
+(pulling the PG password from the running `rw-postgres` container — no secret in
 the repo), installs the systemd unit + nginx vhost, and issues the TLS cert
 (self-signed bootstrap → certbot webroot). DNS for `demos.ryanweiss.net` already
 points at the box.

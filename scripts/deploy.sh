@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build locally, ship to ven-internal, (idempotently) bootstrap the host, and
+# Build locally, ship to production, (idempotently) bootstrap the host, and
 # restart the service. Run from the repo root or anywhere:
 #   bash scripts/deploy.sh
 #

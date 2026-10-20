@@ -111,7 +111,7 @@ scripts/demo projects | jq      # list
 
 ## Deploying
 
-Hosted on **ven-internal** as a native systemd service behind the shared nginx.
+Hosted on demos.ryanweiss.net as a native systemd service behind the shared nginx.
 See `CLAUDE.md` for server access and the first-time bootstrap.
 
 ```bash

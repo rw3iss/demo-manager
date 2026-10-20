@@ -24,7 +24,7 @@ demos; one nginx vhost fronts the whole thing.
   zip size, and a "promote to current" toggle that defaults on).
 - Errors surface cleanly in the UI (validation, upload, permission, server).
 - Clean REST API designed so the same operations can later be driven from a **CLI**.
-- Deployable to the `ven-internal` server as a **native systemd service** (no Docker for our app),
+- Deployable to the server as a **native systemd service** (no Docker for our app),
   reusing the box's existing Postgres and nginx.
 
 **Non-goals (for now)**
@@ -43,7 +43,7 @@ demos; one nginx vhost fronts the whole thing.
                           https://demos.ryanweiss.net
                                      │
                           ┌──────────▼───────────┐
-                          │  ven-nginx (docker)  │   one vhost, TLS termination
+                          │  rw-nginx (docker)  │   one vhost, TLS termination
                           │  demos.ryanweiss.net  │   proxy_pass → host 172.20.0.1:8092
                           └──────────┬───────────┘
                                      │  (all paths)
@@ -61,7 +61,7 @@ demos; one nginx vhost fronts the whole thing.
                 ┌────────────────────┼─────────────────────┐
                 │                    │                      │
         ┌───────▼────────┐   ┌───────▼────────┐    ┌────────▼─────────┐
-        │  ven-postgres  │   │  DEMOS_ROOT    │    │  client/dist     │
+        │  postgres      │   │  DEMOS_ROOT    │    │  client/dist     │
         │  db: demo_     │   │  /opt/demos/   │    │  (manager SPA)   │
         │  manager       │   │  <slug>/<n>/.. │    │  served at /manage│
         └────────────────┘   └────────────────┘    └──────────────────┘
@@ -346,7 +346,7 @@ Designed so we can gate later with minimal churn:
 
 ---
 
-## 10. Deployment (ven-internal)
+## 10. Deployment
 
 Mirrors the **auth-server** precedent exactly: a native **systemd** service behind the containerized
 nginx, using the box's existing Postgres. No Docker for our app.
@@ -357,16 +357,16 @@ nginx, using the box's existing Postgres. No Docker for our app.
   `EnvironmentFile=…/server/.env`, hardened (`ProtectSystem=strict`, `NoNewPrivileges`,
   `PrivateTmp`). `ReadWritePaths` includes both the app dir **and** `DEMOS_ROOT` (`/opt/demos`),
   because the service writes uploaded demos there under `ProtectSystem=strict`.
-- **nginx:** `deploy/nginx/demos.ryanweiss.net.conf` → copy into `/opt/ven-cms/nginx/conf.d/`. HTTP
+- **nginx:** `deploy/nginx/demos.ryanweiss.net.conf` → copy into `/opt/rw-cms/nginx/conf.d/`. HTTP
   block serves the ACME challenge and redirects to HTTPS; HTTPS block `proxy_pass`es to
   `http://172.20.0.1:8092` (the docker bridge gateway = the host as seen from the nginx container).
   `client_max_body_size 300M` and generous `proxy_*_timeout` so large zip uploads pass through.
 - **TLS:** host `certbot` webroot issuance (webroot volume
-  `/var/lib/docker/volumes/ven-certbot-webroot/_data`), self-signed bootstrap so nginx starts first,
-  then the real cert copied to `/opt/ven-cms/nginx/ssl/demos-{fullchain,privkey}.pem`, plus a
+  `/var/lib/docker/volumes/rw-certbot-webroot/_data`), self-signed bootstrap so nginx starts first,
+  then the real cert copied to `/opt/rw-cms/nginx/ssl/demos-{fullchain,privkey}.pem`, plus a
   `/etc/letsencrypt/renewal-hooks/deploy/demos.ryanweiss.net.sh` hook that re-copies on renewal and
   reloads nginx. DNS for `demos.ryanweiss.net` already points at the box.
-- **Database:** create `demo_manager` on `ven-postgres` (owner `twenty`). The app connects to
+- **Database:** create `demo_manager` on `rw-postgres` (owner `twenty`). The app connects to
   `127.0.0.1:5432`. **Migrations auto-run on boot** in production (`DB_RUN_MIGRATIONS=true`), so a
   deploy is just "ship + restart."
 - **Demos root:** `sudo mkdir -p /opt/demos && sudo chown ec2-user:ec2-user /opt/demos`.
@@ -416,7 +416,7 @@ demo-manager/
 | One process vs two | **One** (API + manager UI + demo serving) | One nginx vhost, one systemd unit; "add a project = zero infra change." |
 | Static serving | **By the app**, not nginx | App knows enabled/current/version from the DB; keeps nginx a dumb single proxy. |
 | Unzip | **System `unzip`** behind an interface | No npm zip dep ("prefer native/system"); swappable; safety checks from the listing. |
-| DB | Postgres (`demo_manager` on `ven-postgres`) | Reuse the running service; platform standard. |
+| DB | Postgres (`demo_manager` on `rw-postgres`) | Reuse the running service; platform standard. |
 | Version ref | per-project integer `number` | Matches the requested `/<slug>/<n>/` URL scheme. |
 | SPA support | `<base href>` injection + index fallback | Makes relative-path bundles work under any subpath. |
 | Migrations | auto-run on boot in prod | "Ship + restart" deploys; fine at this scale. |
