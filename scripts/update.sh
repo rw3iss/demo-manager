@@ -2,6 +2,9 @@
 # Runs ON THE SERVER. Pull origin/main, build server + client, apply host
 # config (idempotent), restart, and health-gate.
 #   bash /var/www/demo-manager/scripts/update.sh
+# Wrapped in main() so bash parses the whole file before running it: the
+# `git reset` below rewrites this very script mid-run.
+main() {
 set -euo pipefail
 APP_DIR="${APP_DIR:-/var/www/demo-manager}"
 HEALTH_URL="http://127.0.0.1:4090/healthz"
@@ -30,3 +33,5 @@ for i in $(seq 1 30); do
 done
 echo "❌ health check failed — sudo journalctl -u demo-manager -n 100 --no-pager"
 exit 1
+}
+main "$@"
