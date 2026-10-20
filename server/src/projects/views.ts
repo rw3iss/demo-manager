@@ -25,7 +25,7 @@ export interface ProjectView {
   enabled: boolean;
   currentVersionNumber: number | null;
   versionCount: number;
-  publicUrl: string; // absolute, e.g. "https://demos.vendidit.com/acme/"
+  publicUrl: string; // absolute, e.g. "https://demos.ryanweiss.net/acme/"
   settings: ProjectSettings;
   createdAt: number;
   updatedAt: number;

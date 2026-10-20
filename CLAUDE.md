@@ -1,8 +1,7 @@
 # demo-manager — agent guide
 
 Static-demo publishing system: a Preact admin client + a NestJS server that
-**also** serves the demos. Single process, single nginx vhost. Part of the
-Vendidit `new/` platform — see `../CLAUDE.md` for the wider map.
+**also** serves the demos. Single process, single nginx vhost.
 
 > Read `docs/ARCHITECTURE.md` for the *why*; `README.md` for the quick start.
 
@@ -65,7 +64,7 @@ NOT in Docker. It reuses the box's `ven-postgres` and `ven-nginx` containers.
 | Env (secrets) | `~/apps/demo-manager/server/.env` (chmod 600) |
 | Demos on disk | `/opt/demos/<slug>/<n>/` |
 | Database | `demo_manager` on `ven-postgres` (user `twenty`, host `127.0.0.1:5432`) |
-| nginx vhost | `/opt/ven-cms/nginx/conf.d/demos.vendidit.com.conf` → `proxy_pass 172.20.0.1:8092` |
+| nginx vhost | `/opt/ven-cms/nginx/conf.d/demos.ryanweiss.net.conf` → `proxy_pass 172.20.0.1:8092` |
 | TLS | `/opt/ven-cms/nginx/ssl/demos-{fullchain,privkey}.pem` (certbot; renewal hook copies + reloads) |
 
 **Operate:**
@@ -96,7 +95,7 @@ Or push to `main` → `.github/workflows/deploy.yml` does the same (needs the
 it installs Node, creates `/opt/demos`, creates the DB, writes `server/.env`
 (pulling the PG password from the running `ven-postgres` container — no secret in
 the repo), installs the systemd unit + nginx vhost, and issues the TLS cert
-(self-signed bootstrap → certbot webroot). DNS for `demos.vendidit.com` already
+(self-signed bootstrap → certbot webroot). DNS for `demos.ryanweiss.net` already
 points at the box.
 
 ## Gotchas

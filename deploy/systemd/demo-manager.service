@@ -1,7 +1,6 @@
 # /etc/systemd/system/demo-manager.service
 #
-# Vendidit demo-manager — native Node service on ven-internal (mirrors the
-# auth-server pattern). Install:
+# demo-manager — native Node service. Install:
 #   sudo cp deploy/systemd/demo-manager.service /etc/systemd/system/
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now demo-manager
@@ -10,10 +9,10 @@
 # Restart: sudo systemctl restart demo-manager
 #
 # Listens on :8092 (0.0.0.0). nginx (ven-nginx container) terminates TLS for
-# demos.vendidit.com and reverse-proxies to host 172.20.0.1:8092.
+# demos.ryanweiss.net and reverse-proxies to host 172.20.0.1:8092.
 
 [Unit]
-Description=Vendidit Demo Manager
+Description=Demo Manager
 After=network-online.target
 Wants=network-online.target
 # Never give up after repeated crashes (e.g. DB briefly unreachable on boot).

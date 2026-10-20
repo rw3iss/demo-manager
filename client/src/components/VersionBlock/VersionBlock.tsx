@@ -6,7 +6,7 @@ import type { VersionView } from '@/services/types';
 
 interface Props {
   version: VersionView;
-  publicBase: string; // absolute origin, e.g. https://demos.vendidit.com
+  publicBase: string; // absolute origin, e.g. https://demos.ryanweiss.net
   busy?: boolean;
   onPromote: () => void;
   onReplaceFile: (file: File) => void;

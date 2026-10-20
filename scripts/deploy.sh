@@ -40,7 +40,7 @@ EOF
 echo "▶ Health check (waiting for the service to come up)…"
 # The service restarts asynchronously; poll for up to ~20s before failing.
 if ssh_run "for i in \$(seq 1 20); do curl -sf $HEALTH_URL >/dev/null && exit 0; sleep 1; done; exit 1"; then
-  echo "✅ Deploy complete — https://demos.vendidit.com/manage/"
+  echo "✅ Deploy complete — https://demos.ryanweiss.net/manage/"
 else
   echo "❌ Health check failed. Inspect: ssh … 'sudo journalctl -u $SERVICE -n 100 --no-pager'"
   exit 1

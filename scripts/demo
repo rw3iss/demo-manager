@@ -11,11 +11,11 @@
 #   demo disable <slug> <number>               disable a version
 #   demo rm <slug> [number]                    delete a version, or the project
 #
-# Config: DEMO_API (default https://demos.vendidit.com), DEMO_TOKEN (optional,
+# Config: DEMO_API (default https://demos.ryanweiss.net), DEMO_TOKEN (optional,
 # forwarded as a Bearer token for when auth lands).
 set -euo pipefail
 
-API="${DEMO_API:-https://demos.vendidit.com}/api/v1"
+API="${DEMO_API:-https://demos.ryanweiss.net}/api/v1"
 AUTH=(); [ -n "${DEMO_TOKEN:-}" ] && AUTH=(-H "Authorization: Bearer ${DEMO_TOKEN}")
 pretty() { if command -v jq >/dev/null 2>&1; then jq .; else cat; fi; }
 die() { echo "demo: $*" >&2; exit 1; }

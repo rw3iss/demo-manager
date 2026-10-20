@@ -52,7 +52,7 @@ export function configuration() {
     },
 
     // PageLoop endpoint used when injecting the comment widget into published demos.
-    pageloopEndpoint: (env.PAGELOOP_ENDPOINT ?? 'https://pageloop.vendidit.com').replace(/\/$/, ''),
+    pageloopEndpoint: (env.PAGELOOP_ENDPOINT ?? 'https://pageloop.ryanweiss.net').replace(/\/$/, ''),
 
     db: {
       host: env.DB_HOST ?? '127.0.0.1',

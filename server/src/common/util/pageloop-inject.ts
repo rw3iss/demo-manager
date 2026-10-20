@@ -15,7 +15,7 @@
 const MARKER = 'data-pageloop-injected';
 
 export interface PageloopInjectOptions {
-  endpoint: string; // e.g. https://pageloop.vendidit.com
+  endpoint: string; // e.g. https://pageloop.ryanweiss.net
   projectId: string; // the PageLoop project id the widget binds to
   channel?: string; // loader update channel: 'latest' (default), '<major>.<minor>', or a pinned version
 }

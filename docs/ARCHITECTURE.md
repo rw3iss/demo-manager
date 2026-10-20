@@ -14,8 +14,8 @@ demos; one nginx vhost fronts the whole thing.
 **Goals**
 
 - Register **projects** (a named static demo) and publish **versions** of each (zip uploads).
-- Serve any project's **current** version at `https://demos.vendidit.com/<slug>/` and a specific
-  version at `https://demos.vendidit.com/<slug>/<n>/`.
+- Serve any project's **current** version at `https://demos.ryanweiss.net/<slug>/` and a specific
+  version at `https://demos.ryanweiss.net/<slug>/<n>/`.
 - Each uploaded demo is a self-contained **SPA**: deep links fall back to its `index.html`,
   relative asset paths resolve from wherever it was unpacked.
 - A clean admin dashboard: every project as a column, its versions listed newest-first; a project
@@ -40,11 +40,11 @@ demos; one nginx vhost fronts the whole thing.
 ## 2. High-level shape
 
 ```
-                          https://demos.vendidit.com
+                          https://demos.ryanweiss.net
                                      │
                           ┌──────────▼───────────┐
                           │  ven-nginx (docker)  │   one vhost, TLS termination
-                          │  demos.vendidit.com  │   proxy_pass → host 172.20.0.1:8092
+                          │  demos.ryanweiss.net  │   proxy_pass → host 172.20.0.1:8092
                           └──────────┬───────────┘
                                      │  (all paths)
                        ┌─────────────▼──────────────┐
@@ -87,7 +87,7 @@ project requires **zero** nginx changes.
 
 ## 3. URL & routing model
 
-nginx proxies **everything** for `demos.vendidit.com` to the app. The app dispatches by path, in
+nginx proxies **everything** for `demos.ryanweiss.net` to the app. The app dispatches by path, in
 this precedence (most specific first):
 
 | Path pattern              | Handler            | Notes                                              |
@@ -283,7 +283,7 @@ demo rm acme 2                                  # delete a version
 demo rm acme                                    # delete the project
 ```
 
-Config via env: `DEMO_API` (default `https://demos.vendidit.com`), optional `DEMO_TOKEN` (forward
+Config via env: `DEMO_API` (default `https://demos.ryanweiss.net`), optional `DEMO_TOKEN` (forward
 compatible with §9 auth). Output is the API's JSON (pipeable to `jq`); `--quiet` for scripts. The
 `publish` verb mirrors the UI's upload modal: it can print the computed next version and zip size
 before sending with `--dry-run`.
@@ -339,7 +339,7 @@ Designed so we can gate later with minimal churn:
   shell; public demo serving can be gated **per project** via a `project.visibility`
   (`public | private`) column + a check in `DemoResolverService`, or globally via a single env flag
   / front gate.
-- The platform standard is HS256 JWTs from `@vendidit/auth-server` with **local** per-request
+- The platform standard is HS256 JWTs from `@rw3iss/auth-server` with **local** per-request
   verification (see `auth/auth-server-nest`). The guard would validate the bearer token the same
   way `release-manager/server` does. The CLI already threads an optional `DEMO_TOKEN`.
 - Nothing in the current routing or data model blocks this; it's purely additive.
@@ -357,15 +357,15 @@ nginx, using the box's existing Postgres. No Docker for our app.
   `EnvironmentFile=…/server/.env`, hardened (`ProtectSystem=strict`, `NoNewPrivileges`,
   `PrivateTmp`). `ReadWritePaths` includes both the app dir **and** `DEMOS_ROOT` (`/opt/demos`),
   because the service writes uploaded demos there under `ProtectSystem=strict`.
-- **nginx:** `deploy/nginx/demos.vendidit.com.conf` → copy into `/opt/ven-cms/nginx/conf.d/`. HTTP
+- **nginx:** `deploy/nginx/demos.ryanweiss.net.conf` → copy into `/opt/ven-cms/nginx/conf.d/`. HTTP
   block serves the ACME challenge and redirects to HTTPS; HTTPS block `proxy_pass`es to
   `http://172.20.0.1:8092` (the docker bridge gateway = the host as seen from the nginx container).
   `client_max_body_size 300M` and generous `proxy_*_timeout` so large zip uploads pass through.
 - **TLS:** host `certbot` webroot issuance (webroot volume
   `/var/lib/docker/volumes/ven-certbot-webroot/_data`), self-signed bootstrap so nginx starts first,
   then the real cert copied to `/opt/ven-cms/nginx/ssl/demos-{fullchain,privkey}.pem`, plus a
-  `/etc/letsencrypt/renewal-hooks/deploy/demos.vendidit.com.sh` hook that re-copies on renewal and
-  reloads nginx. DNS for `demos.vendidit.com` already points at the box.
+  `/etc/letsencrypt/renewal-hooks/deploy/demos.ryanweiss.net.sh` hook that re-copies on renewal and
+  reloads nginx. DNS for `demos.ryanweiss.net` already points at the box.
 - **Database:** create `demo_manager` on `ven-postgres` (owner `twenty`). The app connects to
   `127.0.0.1:5432`. **Migrations auto-run on boot** in production (`DB_RUN_MIGRATIONS=true`), so a
   deploy is just "ship + restart."

@@ -35,5 +35,5 @@ export const envValidationSchema = Joi.object({
 
   AUTH_ENABLED: Joi.boolean().default(false),
 
-  PAGELOOP_ENDPOINT: Joi.string().uri().default('https://pageloop.vendidit.com'),
+  PAGELOOP_ENDPOINT: Joi.string().uri().default('https://pageloop.ryanweiss.net'),
 });

@@ -26,7 +26,7 @@ interface ProjectSettings {
 interface ProjectView {
   id: string; slug: string; name: string; description: string | null;
   enabled: boolean; currentVersionNumber: number | null; versionCount: number;
-  publicUrl: string;                             // "https://demos.vendidit.com/acme/"
+  publicUrl: string;                             // "https://demos.ryanweiss.net/acme/"
   settings: ProjectSettings;
   createdAt: number; updatedAt: number;
   versions: VersionView[];                       // newest first
@@ -79,4 +79,4 @@ Notes:
 ## Auth (future)
 
 Public today. When auth lands, send `Authorization: Bearer <jwt>` (HS256 from
-`@vendidit/auth-server`); the CLI already forwards `DEMO_TOKEN`.
+`@rw3iss/auth-server`); the CLI already forwards `DEMO_TOKEN`.

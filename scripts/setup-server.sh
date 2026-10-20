@@ -12,8 +12,8 @@ set -euo pipefail
 NODE_VERSION="${NODE_VERSION:-22.18.0}"
 APP_DIR="${APP_DIR:-$HOME/apps/demo-manager}"
 DEMOS_ROOT="${DEMOS_ROOT:-/opt/demos}"
-DOMAIN="${DOMAIN:-demos.vendidit.com}"
-CERT_EMAIL="${CERT_EMAIL:-ryan@vendidit.com}"
+DOMAIN="${DOMAIN:-demos.ryanweiss.net}"
+CERT_EMAIL="${CERT_EMAIL:-ryan@ryanweiss.net}"
 PG_CONTAINER="${PG_CONTAINER:-ven-postgres}"
 PG_USER="${PG_USER:-twenty}"
 DB_NAME="${DB_NAME:-demo_manager}"
@@ -124,7 +124,7 @@ if sudo test -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem"; then
   sudo tee "$HOOK" >/dev/null <<'HK'
 #!/bin/bash
 set -euo pipefail
-DOMAIN="demos.vendidit.com"; SSL_DIR="/opt/ven-cms/nginx/ssl"
+DOMAIN="demos.ryanweiss.net"; SSL_DIR="/opt/ven-cms/nginx/ssl"
 [ "${RENEWED_LINEAGE:-}" = "/etc/letsencrypt/live/${DOMAIN}" ] || exit 0
 cp "${RENEWED_LINEAGE}/fullchain.pem" "${SSL_DIR}/demos-fullchain.pem"
 cp "${RENEWED_LINEAGE}/privkey.pem"   "${SSL_DIR}/demos-privkey.pem"

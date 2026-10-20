@@ -4,7 +4,7 @@ Publish static "demo" sites and their versions, and manage them from a sleek
 admin dashboard. One small NestJS process serves the admin UI, the admin API,
 **and** the demos themselves; one nginx vhost fronts the whole thing.
 
-Live (prod): **https://demos.vendidit.com** · manager at **/manage**.
+Live (prod): **https://demos.ryanweiss.net** · manager at **/manage**.
 
 ---
 
@@ -16,9 +16,9 @@ Live (prod): **https://demos.vendidit.com** · manager at **/manage**.
 
   | URL | Serves |
   |---|---|
-  | `https://demos.vendidit.com/<slug>/` | **302 →** the current version's `/<slug>/<n>/` URL |
-  | `https://demos.vendidit.com/<slug>/<n>/` | **version `n`** specifically |
-  | `https://demos.vendidit.com/manage` | the **admin dashboard** |
+  | `https://demos.ryanweiss.net/<slug>/` | **302 →** the current version's `/<slug>/<n>/` URL |
+  | `https://demos.ryanweiss.net/<slug>/<n>/` | **version `n`** specifically |
+  | `https://demos.ryanweiss.net/manage` | the **admin dashboard** |
 
   The bare project root redirects (302) to the current version's URL rather than
   serving it in place, so each demo has one canonical URL per version (the
@@ -36,14 +36,14 @@ Live (prod): **https://demos.vendidit.com** · manager at **/manage**.
 - The app reads which project/version is **enabled** and **current** from
   Postgres on each request, so **adding a project needs no nginx change**.
 - **Comments (optional):** enable "Comments" on a project (with a PageLoop
-  project id) and the [PageLoop](https://pageloop.vendidit.com) widget is baked
+  project id) and the [PageLoop](https://pageloop.ryanweiss.net) widget is baked
   into every published page for in-page commenting. Toggling the setting applies
   to all existing versions too — enabling re-injects the widget across every
   version, disabling strips it. Configured per project in the New Project /
   Settings modal; endpoint via `PAGELOOP_ENDPOINT`.
 
 ```
-nginx (demos.vendidit.com)  →  demo-manager (NestJS, :8092)
+nginx (demos.ryanweiss.net)  →  demo-manager (NestJS, :8092)
                                  ├─ /api/v1/*   admin API
                                  ├─ /manage/*   admin SPA (Preact)
                                  └─ /<slug>/..   static demos from DEMOS_ROOT
@@ -96,7 +96,7 @@ version name + "promote to current" toggle, and publish.
 **From the CLI** (`scripts/demo`, uses `curl`/`jq`):
 
 ```bash
-export DEMO_API=https://demos.vendidit.com
+export DEMO_API=https://demos.ryanweiss.net
 scripts/demo create "Acme Redesign" --slug acme
 scripts/demo publish acme ./build.zip --name "Q2 homepage"   # promotes by default
 scripts/demo publish acme ./build.zip --no-promote           # upload without promoting
