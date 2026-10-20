@@ -27,7 +27,7 @@ if ! sudo test -f "$ENV_FILE"; then
 NODE_ENV=production
 PORT=4090
 HOST=127.0.0.1
-LOG_LEVEL=info
+LOG_LEVEL=log
 CORS_ORIGINS=https://$DOMAIN
 PUBLIC_BASE_URL=https://$DOMAIN
 DEMOS_ROOT=$DATA_DIR/demos
