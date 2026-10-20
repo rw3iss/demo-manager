@@ -43,13 +43,13 @@ demos; one nginx vhost fronts the whole thing.
                           https://demos.ryanweiss.net
                                      │
                           ┌──────────▼───────────┐
-                          │  rw-nginx (docker)  │   one vhost, TLS termination
-                          │  demos.ryanweiss.net  │   proxy_pass → host 172.20.0.1:8092
+                          │  nginx (host)         │   one vhost, TLS termination
+                          │  demos.ryanweiss.net  │   proxy_pass → 127.0.0.1:4090
                           └──────────┬───────────┘
                                      │  (all paths)
                        ┌─────────────▼──────────────┐
                        │   demo-manager (NestJS)     │  native systemd service on the host
-                       │   bind 0.0.0.0:8092         │
+                       │   bind 127.0.0.1:4090       │
                        │                             │
                        │  /api/v1/*  → JSON API      │  projects, versions, upload
                        │  /healthz   → health        │
@@ -62,8 +62,8 @@ demos; one nginx vhost fronts the whole thing.
                 │                    │                      │
         ┌───────▼────────┐   ┌───────▼────────┐    ┌────────▼─────────┐
         │  postgres      │   │  DEMOS_ROOT    │    │  client/dist     │
-        │  db: demo_     │   │  /opt/demos/   │    │  (manager SPA)   │
-        │  manager       │   │  <slug>/<n>/.. │    │  served at /manage│
+        │  db: demo_     │   │  /var/lib/demo-│    │  (manager SPA)   │
+        │  manager       │   │  manager/demos │    │  served at /manage│
         └────────────────┘   └────────────────┘    └──────────────────┘
 ```
 
@@ -348,43 +348,44 @@ Designed so we can gate later with minimal churn:
 
 ## 10. Deployment
 
-Mirrors the **auth-server** precedent exactly: a native **systemd** service behind the containerized
-nginx, using the box's existing Postgres. No Docker for our app.
+Production is the **ryanweiss.net box** (InterServer, Fedora 44, `162.35.181.92`, SSH as `rw3iss`).
+Everything is native — systemd, nginx and Postgres on the host, no Docker.
 
-- **Runtime:** Node 22 installed on the host at a fixed path (`/opt/node`), referenced absolutely by
-  the unit. App runs `node dist/main.js`, binds `0.0.0.0:8092`.
-- **systemd:** `deploy/systemd/demo-manager.service` — `Restart=always`, `StartLimitIntervalSec=0`,
-  `EnvironmentFile=…/server/.env`, hardened (`ProtectSystem=strict`, `NoNewPrivileges`,
-  `PrivateTmp`). `ReadWritePaths` includes both the app dir **and** `DEMOS_ROOT` (`/opt/demos`),
-  because the service writes uploaded demos there under `ProtectSystem=strict`.
-- **nginx:** `deploy/nginx/demos.ryanweiss.net.conf` → copy into `/opt/rw-cms/nginx/conf.d/`. HTTP
-  block serves the ACME challenge and redirects to HTTPS; HTTPS block `proxy_pass`es to
-  `http://172.20.0.1:8092` (the docker bridge gateway = the host as seen from the nginx container).
-  `client_max_body_size 300M` and generous `proxy_*_timeout` so large zip uploads pass through.
-- **TLS:** host `certbot` webroot issuance (webroot volume
-  `/var/lib/docker/volumes/rw-certbot-webroot/_data`), self-signed bootstrap so nginx starts first,
-  then the real cert copied to `/opt/rw-cms/nginx/ssl/demos-{fullchain,privkey}.pem`, plus a
-  `/etc/letsencrypt/renewal-hooks/deploy/demos.ryanweiss.net.sh` hook that re-copies on renewal and
-  reloads nginx. DNS for `demos.ryanweiss.net` already points at the box.
-- **Database:** create `demo_manager` on `rw-postgres` (owner `twenty`). The app connects to
-  `127.0.0.1:5432`. **Migrations auto-run on boot** in production (`DB_RUN_MIGRATIONS=true`), so a
-  deploy is just "ship + restart."
-- **Demos root:** `sudo mkdir -p /opt/demos && sudo chown ec2-user:ec2-user /opt/demos`.
+- **Runtime:** box-wide Node 22 at `/usr/local/bin/node`. The repo is checked out at
+  `/var/www/demo-manager` and **built on the box**; the app runs `node dist/main.js` from `server/`
+  and binds **`127.0.0.1:4090`** (`8092` is taken by Beszel on this host).
+- **systemd:** `deploy/systemd/demo-manager.service` — User `rw3iss`, `Restart=always`,
+  `StartLimitIntervalSec=0`, `After=postgresql.service`, `EnvironmentFile=/etc/demo-manager/demo-manager.env`,
+  hardened (`ProtectSystem=strict`, `ProtectHome=read-only`, `NoNewPrivileges`, `PrivateTmp`).
+  `ReadWritePaths=/var/lib/demo-manager` — the only writable path (uploaded demos).
+- **Self-healing:** crashes → `Restart=always` (5 s). Hangs → `demo-manager-healthcheck.timer` runs
+  every 2 min and restarts the service if `GET /healthz` fails. Both units are enabled, so the app
+  comes back after a reboot.
+- **nginx:** `deploy/nginx/demos.ryanweiss.net.conf` → `/etc/nginx/conf.d/`. HTTP block serves the
+  ACME challenge and redirects to HTTPS; HTTPS block `proxy_pass`es to `127.0.0.1:4090`.
+  `client_max_body_size 300M`, `proxy_request_buffering off` and 300 s proxy timeouts so large zip
+  uploads pass through.
+- **TLS:** Let's Encrypt via host `certbot` webroot (`/var/www/letsencrypt`), cert at
+  `/etc/letsencrypt/live/demos.ryanweiss.net/`, renewed by the box's `certbot-renew.timer` (deploy
+  hook reloads nginx). DNS for `demos.ryanweiss.net` is Cloudflare-proxied to the box.
+- **Database:** native Postgres 18, role + db `demo_manager` on `127.0.0.1:5432`. **Migrations
+  auto-run on boot** (`DB_RUN_MIGRATIONS=true`), so a deploy is "build + restart."
+- **Demos root:** `/var/lib/demo-manager/demos` (outside `/var/www`: node serves it, not nginx).
+- **Config:** `/etc/demo-manager/demo-manager.env` (root, 0600), written once by `setup-server.sh`
+  with a generated DB password; never overwritten after that.
 
-**Bootstrap** is a single idempotent script — `scripts/setup-server.sh` — run once on the host:
-installs Node, creates `/opt/demos`, creates the DB, writes `server/.env` (pulling the Postgres
-password from the running container so no secret lands in the repo), installs + enables the systemd
-unit, drops the nginx vhost, and runs the SSL issuance. **Deploys** thereafter are
-`scripts/deploy.sh` (build locally → rsync artifacts → `npm ci --omit=dev` → restart → health-check)
-or the GitHub Actions workflow that runs the same steps on push.
+**Bootstrap + deploy** share one path. `scripts/update.sh` (runs on the box) does
+`git reset --hard origin/main` → `npm ci && npm run build` for server and client →
+`scripts/setup-server.sh` → `systemctl restart` → health-gate on `/healthz`. `setup-server.sh` is
+idempotent: data dir, Postgres role/db + env file (first run only), systemd units, TLS cert (first
+run only), nginx vhost (reloads only when it changed). From a dev machine, `scripts/deploy.sh` SSHes
+in and runs `update.sh`.
 
 ### 10.1 CI/CD
 
-`.github/workflows/deploy.yml` — on push to `main` (and manual `workflow_dispatch`): setup Node 22,
-build server + client, rsync the artifact bundle to `~/apps/demo-manager/` over SSH (deploy key in
-the `SSH_PRIVATE_KEY` secret), `npm ci --omit=dev` for the server on the host, `sudo systemctl
-restart demo-manager`, then gate on `curl localhost:8092/healthz`. Identical in spirit to the
-auth-server pipeline already running for the org.
+`.github/workflows/deploy.yml` — on push to `main` (and manual `workflow_dispatch`): SSH to
+`rw3iss@162.35.181.92` and run `scripts/update.sh`. Needs the `SSH_PRIVATE_KEY` repo secret (a key
+authorized on the box); without it the job skips, and deploys are run with `scripts/deploy.sh`.
 
 ---
 
@@ -398,7 +399,7 @@ demo-manager/
 ├── server/             ← NestJS API + static/demo serving
 ├── client/             ← Preact admin SPA (built, served at /manage)
 ├── deploy/             ← systemd unit + nginx vhost
-├── scripts/            ← setup-server.sh, deploy.sh, demo (CLI)
+├── scripts/            ← update.sh, setup-server.sh, deploy.sh, demo (CLI)
 └── .github/workflows/  ← deploy.yml
 ```
 
@@ -416,9 +417,9 @@ demo-manager/
 | One process vs two | **One** (API + manager UI + demo serving) | One nginx vhost, one systemd unit; "add a project = zero infra change." |
 | Static serving | **By the app**, not nginx | App knows enabled/current/version from the DB; keeps nginx a dumb single proxy. |
 | Unzip | **System `unzip`** behind an interface | No npm zip dep ("prefer native/system"); swappable; safety checks from the listing. |
-| DB | Postgres (`demo_manager` on `rw-postgres`) | Reuse the running service; platform standard. |
+| DB | Postgres (`demo_manager` on the host's Postgres) | Reuse the running service; platform standard. |
 | Version ref | per-project integer `number` | Matches the requested `/<slug>/<n>/` URL scheme. |
 | SPA support | `<base href>` injection + index fallback | Makes relative-path bundles work under any subpath. |
 | Migrations | auto-run on boot in prod | "Ship + restart" deploys; fine at this scale. |
 | Auth | none now, **seam designed** | User wants public now, gating later, with minimal churn. |
-| Process mgmt | native **systemd** (no Docker for app) | Mirrors auth-server; user requirement. |
+| Process mgmt | native **systemd** + health-check timer | Matches the host's native-services convention; self-heals crashes and hangs. |

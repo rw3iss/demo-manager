@@ -43,12 +43,12 @@ Live (prod): **https://demos.ryanweiss.net** · manager at **/manage**.
   Settings modal; endpoint via `PAGELOOP_ENDPOINT`.
 
 ```
-nginx (demos.ryanweiss.net)  →  demo-manager (NestJS, :8092)
+nginx (demos.ryanweiss.net)  →  demo-manager (NestJS, :4090 prod / :8092 dev)
                                  ├─ /api/v1/*   admin API
                                  ├─ /manage/*   admin SPA (Preact)
                                  └─ /<slug>/..   static demos from DEMOS_ROOT
                                       │
-                            Postgres (metadata) + /opt/demos (files)
+                            Postgres (metadata) + /var/lib/demo-manager/demos
 ```
 
 ---
@@ -60,7 +60,7 @@ nginx (demos.ryanweiss.net)  →  demo-manager (NestJS, :8092)
 | `server/` | NestJS API + static/demo serving (`src/…`, TypeORM, migrations) |
 | `client/` | Preact admin SPA (Vite, built to `client/dist`, served at `/manage`) |
 | `deploy/` | systemd unit + nginx vhost |
-| `scripts/` | `deploy.sh`, `setup-server.sh`, `demo` (CLI) |
+| `scripts/` | `deploy.sh`, `update.sh`, `setup-server.sh`, `demo` (CLI) |
 | `docs/` | `ARCHITECTURE.md` (design), `API.md` (endpoints) |
 
 ---
@@ -111,15 +111,16 @@ scripts/demo projects | jq      # list
 
 ## Deploying
 
-Hosted on demos.ryanweiss.net as a native systemd service behind the shared nginx.
-See `CLAUDE.md` for server access and the first-time bootstrap.
+Hosted on the ryanweiss.net box as a native systemd service behind nginx
+(`127.0.0.1:4090`). See `CLAUDE.md` for server paths and operations.
 
 ```bash
-bash scripts/deploy.sh          # build → rsync → bootstrap (idempotent) → restart → health-check
+git push                        # the server deploys origin/main
+bash scripts/deploy.sh          # SSH → update.sh: pull → build → host config → restart → health-check
 ```
 
-Or push to `main` — `.github/workflows/deploy.yml` runs the same steps (needs the
-`SSH_PRIVATE_KEY` repo secret).
+Or push to `main` — `.github/workflows/deploy.yml` runs the same (needs the
+`SSH_PRIVATE_KEY` repo secret; skips without it).
 
 ---
 

@@ -11,7 +11,7 @@ Static-demo publishing system: a Preact admin client + a NestJS server that
 server/   NestJS — /api/v1 (admin), /manage (admin SPA), /<slug>/.. (demos)
 client/   Preact 10 + Vite admin SPA, built to client/dist, served at /manage
 deploy/   systemd unit + nginx vhost
-scripts/  deploy.sh (local) · setup-server.sh (host, idempotent) · demo (CLI)
+scripts/  deploy.sh (local) · update.sh + setup-server.sh (on host) · demo (CLI)
 ```
 
 - **Server** runs on Express (platform-express) so it can do multipart upload +
@@ -22,7 +22,7 @@ scripts/  deploy.sh (local) · setup-server.sh (host, idempotent) · demo (CLI)
 - **DB:** Postgres, TypeORM, two entities (`project`, `version`). Migrations live
   in `server/src/database/migrations` and **auto-run on boot** in prod
   (`DB_RUN_MIGRATIONS=true`).
-- **Storage:** demos unzip to `DEMOS_ROOT/<slug>/<n>/` (`/opt/demos` in prod).
+- **Storage:** demos unzip to `DEMOS_ROOT/<slug>/<n>/` (`/var/lib/demo-manager/demos` in prod).
   `StorageService` is the only thing that touches that filesystem; unzip goes
   through the swappable `ArchiveExtractor` (default: system `unzip`).
 - **Conventions:** timestamps are Unix epoch seconds; path alias `@/*`→`src/*`
@@ -46,61 +46,72 @@ No DB handy? A throwaway Postgres works: `initdb -D /tmp/pg -U postgres
 
 ## Production — ryanweiss.net
 
-**TODO: update instructions for ryanweiss.net here**
-
-User 'rw' alias to connect to production box (Fedora 44).
-demo-manager is a **native systemd service** like the Go auth-server — it is
-NOT in Docker. It uses the box's postgres and nginx.
+Live at **https://demos.ryanweiss.net** (manager: `/manage`). Host: the
+ryanweiss.net box, InterServer **Fedora 44**, IP `162.35.181.92`. SSH as
+`rw3iss@162.35.181.92` (shell alias `rw`; NOPASSWD sudo). Native services — no
+Docker. The box's own handbook is `~/README.md` on the server.
 
 | Thing | Where |
 |---|---|
-| App dir | `/home/ec2-user/apps/demo-manager/` (`server/`, `client/dist`) |
-| Node runtime | `/opt/node/bin/node` (installed by `setup-server.sh`) |
-| Service | `demo-manager.service` (`/etc/systemd/system/`) → host `:8092` |
-| Env (secrets) | `~/apps/demo-manager/server/.env` (chmod 600) |
-| Demos on disk | `/opt/demos/<slug>/<n>/` |
-| Database | `demo_manager` on `rw-postgres` (user `twenty`, host `127.0.0.1:5432`) |
-| nginx vhost | `/opt/rw-cms/nginx/conf.d/demos.ryanweiss.net.conf` → `proxy_pass 172.20.0.1:8092` |
-| TLS | `/opt/rw-cms/nginx/ssl/demos-{fullchain,privkey}.pem` (certbot; renewal hook copies + reloads) |
+| App (git checkout, built on the box) | `/var/www/demo-manager` (`server/dist`, `client/dist`), branch `main`, public HTTPS remote |
+| Node runtime | `/usr/local/bin/node` (v22, box-wide) |
+| Service | `demo-manager.service` (`/etc/systemd/system/`), User `rw3iss` → **`127.0.0.1:4090`** |
+| Self-healing | `Restart=always` + `StartLimitIntervalSec=0`; `demo-manager-healthcheck.timer` (every 2 min) restarts it if `/healthz` stops answering |
+| Env (secrets) | `/etc/demo-manager/demo-manager.env` (root, 0600) — generated once by `setup-server.sh` |
+| Demos on disk | `/var/lib/demo-manager/demos/<slug>/<n>/` |
+| Database | Postgres 18 (native), role + db **`demo_manager`**, `127.0.0.1:5432` |
+| nginx vhost | `/etc/nginx/conf.d/demos.ryanweiss.net.conf` → `proxy_pass 127.0.0.1:4090` |
+| TLS | Let's Encrypt `/etc/letsencrypt/live/demos.ryanweiss.net/` (webroot `/var/www/letsencrypt`, auto-renew via `certbot-renew.timer`) |
 
-**Operate:**
+Port note: `8092` is taken on this box (Beszel), hence `4090`.
+
+**Operate (on the server):**
 
 ```bash
 sudo systemctl status demo-manager
-sudo journalctl -u demo-manager -f          # live logs
+sudo journalctl -u demo-manager -f                  # live logs
 sudo systemctl restart demo-manager
-curl -s http://localhost:8092/healthz       # local health
-# DB shell (psql isn't on the host — go through the container):
-sudo docker exec -it rw-postgres psql -U twenty -d demo_manager
-# nginx (containerized):
-sudo docker exec rw-nginx nginx -t && sudo docker exec rw-nginx nginx -s reload
+curl -s http://127.0.0.1:4090/healthz               # local health
+systemctl list-timers demo-manager-healthcheck.timer
+sudo -u postgres psql demo_manager                   # DB shell
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
 ## Deploying
 
-From a local clone (builds, ships, bootstraps idempotently, restarts, health-gates):
+The server pulls `origin/main` and builds itself. Push first, then:
 
 ```bash
-bash scripts/deploy.sh
+bash scripts/deploy.sh          # local: SSH → runs scripts/update.sh on the box
+# or, on the server:
+bash /var/www/demo-manager/scripts/update.sh
 ```
 
-Or push to `main` → `.github/workflows/deploy.yml` does the same (needs the
-`SSH_PRIVATE_KEY` repo secret = contents of `dev-admins.pem`).
+`update.sh`: `git reset --hard origin/main` → `npm ci && npm run build` (server
++ client) → `setup-server.sh` (idempotent host config) → restart → health-gate on
+`/healthz`. Migrations auto-run on boot (`DB_RUN_MIGRATIONS=true`).
 
-**First time on a fresh box:** `deploy.sh` calls `setup-server.sh` automatically;
-it installs Node, creates `/opt/demos`, creates the DB, writes `server/.env`
-(pulling the PG password from the running `rw-postgres` container — no secret in
-the repo), installs the systemd unit + nginx vhost, and issues the TLS cert
-(self-signed bootstrap → certbot webroot). DNS for `demos.ryanweiss.net` already
-points at the box.
+`.github/workflows/deploy.yml` runs the same over SSH on push to `main`, but only
+if the `SSH_PRIVATE_KEY` repo secret (a key authorized for `rw3iss@162.35.181.92`)
+is set; otherwise it skips.
+
+**First time / fresh box:** `git clone https://github.com/rw3iss/demo-manager.git
+/var/www/demo-manager && bash /var/www/demo-manager/scripts/update.sh`.
+`setup-server.sh` creates the data dir, the Postgres role/db (random password),
+the env file, installs + enables the systemd units, issues the TLS cert (HTTP-01
+webroot), and installs the nginx vhost. DNS for `demos.ryanweiss.net` points at
+the box (Cloudflare-proxied).
 
 ## Gotchas
 
 - The static catch-all must stay **first** in the Express stack (it `next()`s
   `/api` + `/healthz`). If you `app.init()` before attaching it, Nest's
   not-found handler shadows it — don't.
-- nginx is in a container; the proxy target is the docker bridge gateway
-  **`172.20.0.1`** (the host as seen from `ven-nginx`), not `127.0.0.1`.
+- The env lives in `/etc/demo-manager/demo-manager.env`, not `server/.env`.
+  `setup-server.sh` never overwrites it once it exists — edit it in place, then
+  restart.
+- The unit runs with `ProtectSystem=strict`; the only writable path is
+  `/var/lib/demo-manager`. Moving `DEMOS_ROOT` means updating `ReadWritePaths`.
 - `client_max_body_size` in the vhost must be ≥ the app's `MAX_UPLOAD_MB`.
 - Uploaded demos must use **relative** asset paths and have `index.html` at the
   root (or one folder deep). Absolute `/assets/...` demos won't resolve under the
