@@ -4,7 +4,7 @@ Publish static "demo" sites and their versions, and manage them from a sleek
 admin dashboard. One small NestJS process serves the admin UI, the admin API,
 **and** the demos themselves; one nginx vhost fronts the whole thing.
 
-Live (prod): **https://demos.ryanweiss.net** · manager at **/manage**.
+Live (prod): **https://demos.ryanweiss.net** (alias **https://demos.rw3iss.com**) · manager at **/manage**.
 
 ---
 

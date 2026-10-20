@@ -361,7 +361,7 @@ Everything is native — systemd, nginx and Postgres on the host, no Docker.
 - **Self-healing:** crashes → `Restart=always` (5 s). Hangs → `demo-manager-healthcheck.timer` runs
   every 2 min and restarts the service if `GET /healthz` fails. Both units are enabled, so the app
   comes back after a reboot.
-- **nginx:** `deploy/nginx/demos.ryanweiss.net.conf` → `/etc/nginx/conf.d/`. HTTP block serves the
+- **nginx:** `deploy/nginx/demos.ryanweiss.net.conf` → `/etc/nginx/conf.d/` (serves `demos.ryanweiss.net` and the alias `demos.rw3iss.com`). HTTP block serves the
   ACME challenge and redirects to HTTPS; HTTPS block `proxy_pass`es to `127.0.0.1:4090`.
   `client_max_body_size 300M`, `proxy_request_buffering off` and 300 s proxy timeouts so large zip
   uploads pass through.

@@ -46,7 +46,7 @@ No DB handy? A throwaway Postgres works: `initdb -D /tmp/pg -U postgres
 
 ## Production — ryanweiss.net
 
-Live at **https://demos.ryanweiss.net** (manager: `/manage`). Host: the
+Live at **https://demos.ryanweiss.net** (alias **https://demos.rw3iss.com**; manager: `/manage`). Host: the
 ryanweiss.net box, InterServer **Fedora 44**, IP `162.35.181.92`. Native
 services — no Docker. The box's own handbook is `~/README.md` on the server.
 
@@ -64,7 +64,7 @@ scripts use the full host (`scripts/_common.sh`: override with `DEMO_SSH_HOST`,
 | Env (secrets) | `/etc/demo-manager/demo-manager.env` (root, 0600) — generated once by `setup-server.sh` |
 | Demos on disk | `/var/lib/demo-manager/demos/<slug>/<n>/` |
 | Database | Postgres 18 (native), role + db **`demo_manager`**, `127.0.0.1:5432` |
-| nginx vhost | `/etc/nginx/conf.d/demos.ryanweiss.net.conf` → `proxy_pass 127.0.0.1:4090` |
+| nginx vhost | `/etc/nginx/conf.d/demos.ryanweiss.net.conf` (`demos.ryanweiss.net` + `demos.rw3iss.com`) → `proxy_pass 127.0.0.1:4090` |
 | TLS | Let's Encrypt `/etc/letsencrypt/live/demos.ryanweiss.net/` (webroot `/var/www/letsencrypt`, auto-renew via `certbot-renew.timer`) |
 
 Port note: `8092` is taken on this box (Beszel), hence `4090`.
