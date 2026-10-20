@@ -47,9 +47,13 @@ No DB handy? A throwaway Postgres works: `initdb -D /tmp/pg -U postgres
 ## Production — ryanweiss.net
 
 Live at **https://demos.ryanweiss.net** (manager: `/manage`). Host: the
-ryanweiss.net box, InterServer **Fedora 44**, IP `162.35.181.92`. SSH as
-`rw3iss@162.35.181.92` (shell alias `rw`; NOPASSWD sudo). Native services — no
-Docker. The box's own handbook is `~/README.md` on the server.
+ryanweiss.net box, InterServer **Fedora 44**, IP `162.35.181.92`. Native
+services — no Docker. The box's own handbook is `~/README.md` on the server.
+
+**Connect:** `ssh rw3iss@162.35.181.92` (key `~/.ssh/id_ed25519`; NOPASSWD
+sudo). Interactive shells have the alias `rw` (`alias rw='ssh rw3iss@162.35.181.92'`);
+scripts use the full host (`scripts/_common.sh`: override with `DEMO_SSH_HOST`,
+`DEMO_SSH_USER`, `DEMO_SSH_KEY`).
 
 | Thing | Where |
 |---|---|
